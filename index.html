@@ -59,6 +59,7 @@
       <button class="btn ghost" id="expJson">Export JSON</button>
       <button class="btn ghost" id="expMd">Export Markdown</button>
     </div>
+    <div class="tags" id="filterRow" style="margin-bottom:10px"></div>
     <div id="list"></div>
   </div>
 </div>
@@ -95,26 +96,44 @@ function save(){
   const list=load();
   list.unshift({...draft, at:new Date().toISOString()});
   localStorage.setItem(KEY,JSON.stringify(list.slice(0,100)));
-  draft={tags:[]}; i=0; renderStep(); renderList();
+  draft={tags:[]}; i=0; renderStep(); renderFilters(); renderList();
 }
 function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||[]; }catch(e){ return []; } }
+function persist(list){ localStorage.setItem(KEY,JSON.stringify(list)); }
+let activeFilter='all';
+function renderFilters(){
+  const used=Array.from(new Set(load().flatMap(d=>d.tags||[])));
+  const row=$('filterRow');
+  if(!used.length){ row.innerHTML=''; return; }
+  row.innerHTML=[['all','All'],...used.map(t=>[t,t])].map(([id,label])=>`<span class="tag ${activeFilter===id?'active':''}" data-f="${id}">${label}</span>`).join('');
+  row.querySelectorAll('.tag').forEach(el=>el.onclick=()=>{ activeFilter=el.dataset.f; renderFilters(); renderList(); });
+}
 function renderList(){
-  const list=load(), L=$('list');
+  let list=load().map((d,i)=>({...d,_i:i}));
+  const L=$('list');
   if(!list.length){ L.innerHTML='<div class="empty">No decisions saved yet. Walk the five steps above and your first waypoint will appear here.</div>'; return; }
-  L.innerHTML=list.map(d=>`<div class="ditem">
-    <h3>${esc(d.decision)}</h3>
+  if(activeFilter!=='all') list=list.filter(d=>(d.tags||[]).includes(activeFilter));
+  if(!list.length){ L.innerHTML='<div class="empty">No decisions with that tag.</div>'; return; }
+  L.innerHTML=list.map(d=>`<div class="ditem" style="${d.revisit?'border-color:var(--accent)':''}">
+    <h3>${d.revisit?'🔖 ':''}${esc(d.decision)}</h3>
     <div class="meta">${new Date(d.at).toLocaleString()} ${(d.tags||[]).map(t=>`<span class="pill">${t}</span>`).join(' ')}</div>
     ${d.matters?`<div class="step"><b>Matters:</b> ${esc(d.matters)}</div>`:''}
     ${d.options?`<div class="step"><b>Options:</b> ${esc(d.options)}</div>`:''}
     ${d.step?`<div class="step"><b>Next step:</b> ${esc(d.step)}</div>`:''}
     ${d.wisdom?`<div class="step"><b>Wisdom:</b> ${esc(d.wisdom)}</div>`:''}
+    <div class="row" style="margin-top:8px">
+      <button class="pill" style="cursor:pointer;background:none" data-rev="${d._i}">${d.revisit?'✓ Revisiting':'🔖 Revisit later'}</button>
+      <button class="pill" style="cursor:pointer;background:none;color:var(--bad,#e0857a)" data-del="${d._i}">🗑 Delete</button>
+    </div>
   </div>`).join('');
+  L.querySelectorAll('[data-rev]').forEach(b=>b.onclick=()=>{ const all=load(); all[+b.dataset.rev].revisit=!all[+b.dataset.rev].revisit; persist(all); renderList(); });
+  L.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ if(confirm('Delete this decision?')){ const all=load(); all.splice(+b.dataset.del,1); persist(all); renderFilters(); renderList(); } });
 }
 function esc(s){ return (s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
 function download(name,text,type){ const b=new Blob([text],{type}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); }
 $('expJson').onclick=()=>download('waypoint-decisions.json',JSON.stringify(load(),null,2),'application/json');
 $('expMd').onclick=()=>{ const md=load().map(d=>`## ${d.decision}\n_${new Date(d.at).toLocaleString()}_ ${(d.tags||[]).map(t=>'#'+t).join(' ')}\n\n- **Matters most:** ${d.matters||''}\n- **Options:** ${d.options||''}\n- **Smallest next step:** ${d.step||''}\n- **Wisdom/kindness/courage:** ${d.wisdom||''}\n`).join('\n---\n\n')||'_No decisions yet._'; download('waypoint-decisions.md','# Waypoint decisions\n\n'+md,'text/markdown'); };
-renderStep(); renderList();
+renderStep(); renderFilters(); renderList();
 </script>
 </body>
 </html>
