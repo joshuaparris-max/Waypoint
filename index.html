@@ -135,5 +135,12 @@ $('expJson').onclick=()=>download('waypoint-decisions.json',JSON.stringify(load(
 $('expMd').onclick=()=>{ const md=load().map(d=>`## ${d.decision}\n_${new Date(d.at).toLocaleString()}_ ${(d.tags||[]).map(t=>'#'+t).join(' ')}\n\n- **Matters most:** ${d.matters||''}\n- **Options:** ${d.options||''}\n- **Smallest next step:** ${d.step||''}\n- **Wisdom/kindness/courage:** ${d.wisdom||''}\n`).join('\n---\n\n')||'_No decisions yet._'; download('waypoint-decisions.md','# Waypoint decisions\n\n'+md,'text/markdown'); };
 renderStep(); renderFilters(); renderList();
 </script>
+<script
+  src="https://cdn.jsdelivr.net/gh/joshualparris/JoshHub@35c4348b4adfbc1c64bad8a3d3e31ede008a4441/public/podcast-dock.js"
+  data-topics="decision"
+  data-label="🧭 Listen to a different decision podcast"
+  data-quiet-on-input="true"
+  defer
+></script>
 </body>
 </html>
